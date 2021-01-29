@@ -2,7 +2,7 @@
  *                                          *
  *          REPÚBLICA MÓVIL WIDGET          *
  *                                          *
- *        v1.0.1 - made by jchicano         *
+ *         v1.1 - made by jchicano          *
  *                                          *
  ********************************************
 
@@ -84,11 +84,9 @@ const CONF_BG_GRADIENT_COLOR_BTM = Color.dynamic(
 
 /* ============= CONFIG  END ============= */
 
-const ONLINE = await isOnline();
-
 // check for updates
-if (ONLINE && CHECK_FOR_SCRIPT_UPDATE === true) {
-    UPDATE_AVAILABLE = await checkForUpdate('v1.0.1');
+if (CHECK_FOR_SCRIPT_UPDATE === true) {
+    UPDATE_AVAILABLE = await checkForUpdate('v1.1');
 }
 
 let widget = await createWidget();
@@ -126,20 +124,15 @@ async function createWidget(items) {
 
         let api_online = false;
         try {
-            if (ONLINE) {
-                // Fetch data from api
-                data = await req.loadJSON();
-                // Write JSON to local file
-                fm.writeString(jsonLocalPath, JSON.stringify(data, null, 2));
-                api_online = true;
-                lastFetchDate = new Date();
-                fm.writeString(
-                    lastFetchDateLocalPath,
-                    lastFetchDate.toString()
-                );
-            }
+            // Fetch data from api
+            data = await req.loadJSON();
+            // Write JSON to local file
+            fm.writeString(jsonLocalPath, JSON.stringify(data, null, 2));
+            api_online = true;
+            lastFetchDate = new Date();
+            fm.writeString(lastFetchDateLocalPath, lastFetchDate.toString());
         } catch (err) {
-            console.log(err);
+            log(err);
             // Read data from local file
             if (
                 fm.fileExists(jsonLocalPath) &&
@@ -151,20 +144,25 @@ async function createWidget(items) {
                 );
             } else {
                 const errorList = new ListWidget();
-                errorList.addText('Error on initial execution');
+                errorList.addText('No local cache');
                 return errorList;
             }
         }
 
         let usedPercentage = -1;
-        let total_cel_used = data.cel_used;
+        let total_cel_used =
+            data.cel_used_format == 'MB' ? data.cel_used / 1024 : data.cel_used;
         let total_cel_available = data.cel_available;
 
         // If there is a promotional data plan active
         if (data.promo_used && data.promo_available) {
+            let total_promo_used =
+                data.promo_used_format == 'MB'
+                    ? data.promo_used / 1024
+                    : data.promo_used;
             // Update variables
             total_cel_used =
-                parseFloat(data.cel_used) + parseFloat(data.promo_used);
+                parseFloat(data.cel_used) + parseFloat(total_promo_used);
             total_cel_available =
                 parseInt(data.cel_available) + parseInt(data.promo_available);
             // Set percentage
@@ -191,7 +189,7 @@ async function createWidget(items) {
         let titlename = stack.addText('Datos móviles');
         titlename.font = Font.mediumSystemFont(14);
         titlename.textColor = Color.dynamic(Color.black(), Color.white());
-        // const availabledata = 100 - usedPercentage;
+
         const fontName = 'Futura-Medium';
         const line2 = list.addText(usedPercentage + '%');
         line2.font = new Font(fontName, 36);
@@ -206,7 +204,11 @@ async function createWidget(items) {
         function addUsedData() {
             let stack = row.addStack();
             stack.layoutHorizontally();
-            let line3 = stack.addText(total_cel_used + '');
+            let line3 = stack.addText(
+                parseFloat(total_cel_used).toFixed(2) +
+                    ' ' +
+                    data.cel_used_format
+            );
             line3.font = Font.boldSystemFont(14);
             line3.textColor = Color.dynamic(Color.black(), Color.white());
             stack.addSpacer(10);
@@ -250,7 +252,7 @@ async function createWidget(items) {
         // Add time (and date) of last data fetch
         const df = new DateFormatter();
         const wasFetchedToday = lastFetchDate.getDate() == new Date().getDate();
-        df.dateFormat = wasFetchedToday ? 'HH:mm' : 'dd.MM. HH:mm';
+        df.dateFormat = wasFetchedToday ? 'HH:mm' : 'dd.MM HH:mm';
 
         list.addSpacer(6);
 
@@ -278,19 +280,19 @@ async function createWidget(items) {
         }
 
         titlename = stack3.addText(df.string(lastFetchDate));
-        titlename.font = Font.mediumSystemFont(10);
-        titlename.tintColor = Color.dynamic(Color.black(), Color.white());
+        if ((wasFetchedToday && api_online) || (wasFetchedToday && !api_online))
+            titlename.font = Font.mediumSystemFont(10);
+        else titlename.font = Font.mediumSystemFont(8);
+        if (api_online && !wasFetchedToday)
+            // titlename.font =
+            //     api_online && wasFetchedToday
+            //         ? Font.mediumSystemFont(10)
+            //         : Font.mediumSystemFont(8);
+            titlename.tintColor = Color.dynamic(Color.black(), Color.white());
         if (api_online) stack3.addSpacer();
 
         list.addSpacer(6);
     } catch (err) {
-        // Read data from iCloud file
-        // data = JSON.parse(fm.readString(path), null);
-        // if (!data || !data.usedPercentage) {
-        //     const errorList = new ListWidget();
-        //     errorList.addText('Error on initial execution');
-        //     return errorList;
-        // }
         log(err);
         log('Error fetching JSON');
     }
@@ -300,27 +302,18 @@ async function createWidget(items) {
 
 /* ============== FUNCTIONS ============== */
 
-// check if there's a connection to the interwebz
-async function isOnline() {
-    const view = new WebView();
-    const connection = await view.evaluateJavaScript('navigator.onLine');
-    return connection;
-}
-
 // check if there's a script update available on GitHub
 async function checkForUpdate(currentVersion) {
-    if (ONLINE) {
-        try {
-            const latestVersion = await new Request(
-                'https://raw.githubusercontent.com/jchicano/scriptable-republicamovil/master/version.txt'
-            ).loadString();
-            return currentVersion.replace(/[^1-9]+/g, '') <
-                latestVersion.replace(/[^1-9]+/g, '')
-                ? true
-                : false;
-        } catch (err) {
-            log('try checkForUpdate: ' + err);
-            return false;
-        }
+    try {
+        const latestVersion = await new Request(
+            'https://raw.githubusercontent.com/jchicano/scriptable-republicamovil/master/version.txt'
+        ).loadString();
+        return currentVersion.replace(/[^1-9]+/g, '') <
+            latestVersion.replace(/[^1-9]+/g, '')
+            ? true
+            : false;
+    } catch (err) {
+        log('try checkForUpdate: ' + err);
+        return false;
     }
 }
