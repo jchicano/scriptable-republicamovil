@@ -2,7 +2,7 @@
  *                                          *
  *          REPÚBLICA MÓVIL WIDGET          *
  *                                          *
- *         v1.1 - made by jchicano          *
+ *        v1.1.1 - made by jchicano         *
  *                                          *
  ********************************************
 
@@ -86,7 +86,7 @@ const CONF_BG_GRADIENT_COLOR_BTM = Color.dynamic(
 
 // check for updates
 if (CHECK_FOR_SCRIPT_UPDATE === true) {
-    UPDATE_AVAILABLE = await checkForUpdate('v1.1');
+    UPDATE_AVAILABLE = await checkForUpdate('v1.1.1');
 }
 
 let widget = await createWidget();
@@ -152,6 +152,10 @@ async function createWidget(items) {
         let usedPercentage = -1;
         let total_cel_used =
             data.cel_used_format == 'MB' ? data.cel_used / 1024 : data.cel_used;
+        log(total_cel_used);
+        log(data.cel_used_format);
+        log(data.cel_used / 1024);
+        log(data.cel_used);
         let total_cel_available = data.cel_available;
 
         // If there is a promotional data plan active
@@ -166,14 +170,10 @@ async function createWidget(items) {
             total_cel_available =
                 parseInt(data.cel_available) + parseInt(data.promo_available);
             // Set percentage
-            usedPercentage = parseInt(
-                (total_cel_used * 100) / total_cel_available
-            );
+            usedPercentage = parseInt(total_cel_used / total_cel_available);
         } else {
             // Set percentage
-            usedPercentage = parseInt(
-                (total_cel_used * 100) / total_cel_available
-            );
+            usedPercentage = parseInt(total_cel_used / total_cel_available);
         }
 
         let stack = list.addStack();
@@ -205,9 +205,7 @@ async function createWidget(items) {
             let stack = row.addStack();
             stack.layoutHorizontally();
             let line3 = stack.addText(
-                parseFloat(total_cel_used).toFixed(2) +
-                    ' ' +
-                    data.cel_used_format
+                parseFloat(data.cel_used) + ' ' + data.cel_used_format
             );
             line3.font = Font.boldSystemFont(14);
             line3.textColor = Color.dynamic(Color.black(), Color.white());
