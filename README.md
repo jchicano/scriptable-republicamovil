@@ -21,7 +21,7 @@ I am assuming the JSON file has the following format:
 You can get the API from <a href="https://github.com/jchicano/api-republicamovil">here</a>
 
 ## Screenshots
-Solarized dark             |  Solarized Ocean
+Light mode                 |  Dark mode
 :-------------------------:|:-------------------------:
 ![](https://raw.githubusercontent.com/jchicano/scriptable-republicamovil/master/screenshots/light.png)  |  ![](https://raw.githubusercontent.com/jchicano/scriptable-republicamovil/master/screenshots/dark.png)
 
